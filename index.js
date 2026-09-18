@@ -44,7 +44,9 @@ app.get("/users", (req, res) => {
 // REST API
 
 app.get("/api/users", (req, res) => {
-  res.json(users);
+  res.setHeader("X-myName", "anand"); // custam header
+  // Always  add X is custam header
+  return res.json(users);
 });
 
 app.get("/api/users/:id", (req, res) => {

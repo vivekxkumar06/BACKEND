@@ -1,155 +1,67 @@
 const express = require("express");
+const { connectMongoDb } = require("./connection");
+const { logReqRes } = require("./middlewares");
 
-const fs = require("fs");
-
-const users = require("./MOCK_DATA.json");
-
-const mongoose = require("mongoose");
+const URL = require("./models/url");
+const userRouter = require("./routes/user");
+const urlRoute = require("./routes/url");
 
 const app = express();
+const PORT = 8000;
 
-// Connection
-
-mongoose
-  .connect("mongodb://localhost:27017/youtube-app-1")
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.log("Mongo Error", err));
-// Schema
-
-const userSchema = new mongoose.Schema(
-  {
-    firstName: {
-      type: String,
-      required: true,
-    },
-
-    lastName: {
-      type: String,
-    },
-
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
-    jobTitle: {
-      type: String,
-    },
-
-    gender: {
-      type: String,
-    },
-  },
-  {
-    timestamps: true,
-  },
-);
-
-const User = mongoose.model("user", userSchema);
-
-// Middleware - plugin
+// Middlewares
 app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+app.use(logReqRes("log.txt"));
 
-app.use((req, res, next) => {
-  fs.appendFile(
-    "log.txt",
-    `${Date.now()} : ${req.ip} : ${req.method} : ${req.path}\n`,
-    (err, data) => {
-      next();
-    },
-  );
-  next();
-});
-
-app.use((req, res, next) => {
-  console.log("hello from middleware 2", req.myUserNamec);
-  next();
-  //   return res.end("hey");
-});
-
+// Home route
 app.get("/", (req, res) => {
-  res.send("Hello World");
-
-  res.send(html);
+  return res.send("Hello World");
 });
 
-app.get("/users", (req, res) => {
-  const html = `
-    <ul>
-    ${users.map((user) => `<li>${user.first_name}</li>`).join("")}
-    
-    </ul>
-    `;
-});
+// User routes
+app.use("/user", userRouter);
 
-// REST API
+// URL Shortener routes
+app.use("/url", urlRoute);
 
-app.get("/api/users", (req, res) => {
-  res.setHeader("X-myName", "anand"); // custam header
-  // Always  add X is custam header
-  return res.json(users);
-});
+// Redirect route
+app.get("/:shortId", async (req, res) => {
+  try {
+    const shortId = req.params.shortId;
 
-app.get("/api/users/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const user = users.find((user) => user.id == id);
-  if (!user) return res.status(404).json({ error: "users is not found" });
-  return res.json(user);
-});
+    const entry = await URL.findOneAndUpdate(
+      { shortId },
+      {
+        $push: {
+          visitHistory: {
+            timestamp: Date.now(),
+          },
+        },
+      },
+      { new: true },
+    );
 
-app.post("/api/users", async (req, res) => {
-  //TOOD : Create new users
+    if (!entry) {
+      return res.status(404).send("Short URL not found");
+    }
 
-  const body = req.body;
-  if (
-    !body ||
-    !body.first_name ||
-    !body.last_name ||
-    !body.email ||
-    !body.gender ||
-    !body.job_title
-  ) {
-    return res.status(404).json({ msg: "All field are req..." });
+    return res.redirect(entry.redirectURL);
+  } catch (error) {
+    console.error("Redirect error:", error);
+    return res.status(500).send("Internal Server Error");
   }
-  const result = await User.create({
-    firstName: body.first_name,
-    lastName: body.last_name,
-    email: body.email,
-    gender: body.gender,
-    jobTitle: body.job_title,
+});
+
+// MongoDB Connection and Server
+connectMongoDb("mongodb://localhost:27017/short-url")
+  .then(() => {
+    console.log("MongoDB connected successfully");
+
+    app.listen(PORT, () => {
+      console.log(`Server started on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("MongoDB connection failed:", error.message);
   });
-  console.log("result", result);
-  return res.status(201).json({ msg: "success" });
-});
-
-app.patch("/api/users/:id", (req, res) => {
-  //TOOD : Edit the user  with  id
-
-  return res.json({ status: "pending" });
-});
-
-app.delete("/api/users/:id", (req, res) => {
-  //TOOD : Delete the user  with  id
-
-  return res.json({ status: "pending" });
-});
-
-app.listen(8000, () => {
-  console.log("Server started on port 8000");
-});
-
-// short rest api
-
-// app.route("/api/users/:id");
-// .get((req, res) => {
-//   const id = Number(req.params.id);
-//   const user = users.find((user) => user.id == id);
-//   return res.json(user);
-// });
-
-// .patch( (req, res) => {
-//   //TOOD : Edit the user  with  id
-
-//   return res.json({ status: "pending" });
-// });

@@ -1,4 +1,7 @@
+const { v4: uuidv4 } = require("uuid");
+
 const User = require("../models/user");
+const { setUser } = require("../service/auth");
 
 // GET all users
 async function handleGetAllUsers(req, res) {
@@ -32,14 +35,14 @@ async function handleGetUserById(req, res) {
   }
 }
 
-// CREATE user
+// CREATE user through API
 async function handleCreateUser(req, res) {
   try {
     const { first_name, last_name, email, gender, job_title } = req.body;
 
-    if (!first_name || !last_name || !email || !gender || !job_title) {
+    if (!first_name || !email) {
       return res.status(400).json({
-        msg: "All fields are required",
+        msg: "First name and email are required",
       });
     }
 
@@ -64,16 +67,61 @@ async function handleCreateUser(req, res) {
       user,
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({
-        msg: "Email already exists",
-      });
-    }
-
     console.error(error);
     return res.status(500).json({
       error: "Internal Server Error",
     });
+  }
+}
+
+// SIGNUP through HTML form
+async function handleUserSignup(req, res) {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).send("All fields are required");
+    }
+
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(409).send("Email already registered");
+    }
+
+    await User.create({
+      firstName: name,
+      email,
+      password,
+    });
+
+    return res.redirect("/");
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send("Signup failed");
+  }
+}
+
+// LOGIN
+async function handleUserLogin(req, res) {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email, password });
+
+    if (!user) {
+      return res.status(401).render("login", {
+        error: "Invalid email or password",
+      });
+    }
+    const sessionId = uuidv4();
+    setUser(sessionId, user);
+    res.cookie("uid", sessionId);
+
+    return res.redirect("/");
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send("Login failed");
   }
 }
 
@@ -130,4 +178,6 @@ module.exports = {
   handleCreateUser,
   handleUpdateUserById,
   handleDeleteUserById,
+  handleUserSignup,
+  handleUserLogin,
 };

@@ -6,9 +6,14 @@ const {
   handleCreateUser,
   handleUpdateUserById,
   handleDeleteUserById,
+  handleUserSignup,
+  handleUserLogin,
 } = require("../controllers/user");
 
 const router = express.Router();
+
+router.post("/", handleUserSignup);
+router.post("/login", handleUserLogin);
 
 // GET all users and CREATE user
 router.route("/").get(handleGetAllUsers).post(handleCreateUser);

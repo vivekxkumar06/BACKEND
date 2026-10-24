@@ -1,5 +1,3 @@
-const { v4: uuidv4 } = require("uuid");
-
 const User = require("../models/user");
 const { setUser } = require("../service/auth");
 
@@ -114,13 +112,19 @@ async function handleUserLogin(req, res) {
         error: "Invalid email or password",
       });
     }
-    const sessionId = uuidv4();
-    setUser(sessionId, user);
-    res.cookie("uid", sessionId);
+
+    // Generate JWT token
+    const token = setUser(user);
+
+    // Store token in cookie
+    res.cookie("uid", token, {
+      httpOnly: true,
+      sameSite: "lax",
+    });
 
     return res.redirect("/");
   } catch (error) {
-    console.error(error);
+    console.error("Login error:", error);
     return res.status(500).send("Login failed");
   }
 }
@@ -129,7 +133,7 @@ async function handleUserLogin(req, res) {
 async function handleUpdateUserById(req, res) {
   try {
     const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
 
@@ -144,6 +148,7 @@ async function handleUpdateUserById(req, res) {
       user,
     });
   } catch (error) {
+    console.error(error);
     return res.status(400).json({
       error: "Invalid user ID or update data",
     });

@@ -115,12 +115,13 @@ async function handleUserLogin(req, res) {
 
     // Generate JWT token
     const token = setUser(user);
+    res.cookie("token", token);
 
     // Store token in cookie
-    res.cookie("uid", token, {
-      httpOnly: true,
-      sameSite: "lax",
-    });
+    // res.cookie("uid", token, {
+    //   httpOnly: true,
+    //   sameSite: "lax",
+    // });
 
     return res.redirect("/");
   } catch (error) {

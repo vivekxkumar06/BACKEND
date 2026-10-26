@@ -3,7 +3,7 @@ const path = require("path");
 const { connectMongoDb } = require("./connection");
 const { logReqRes } = require("./middlewares");
 const cookieParser = require("cookie-parser");
-const { restrictToLoggedinUserOnly, checkAuth } = require("./middlewares/auth");
+const { checkForAuthentication, restricTo } = require("./middlewares/auth");
 const URL = require("./models/url");
 const userRouter = require("./routes/user");
 
@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(logReqRes("log.txt"));
-
+app.use(checkForAuthentication);
 app.use(cookieParser());
 
 // EJS Configuration
@@ -43,10 +43,10 @@ app.get("/", async (req, res) => {
 app.use("/user", userRouter);
 
 // URL Shortener Routes
-app.use("/url", restrictToLoggedinUserOnly, urlRoute);
+app.use("/url", restricTo("NORMAL"), urlRoute);
 
 // Other Static Routes
-app.use("/", checkAuth, staticRoute);
+app.use("/", staticRoute);
 
 // Redirect Short URL
 app.get("/:shortId", async (req, res) => {
